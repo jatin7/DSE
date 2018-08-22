@@ -1,0 +1,71 @@
+---
+  - hosts: all
+    gather_facts: yes
+    become: yes
+    vars:
+      dse_enterprise: archives/dse-6.0.2-bin.tar.gz
+      opscenter: archives/opscenter-6.5.2.tar.gz
+      datastax_agent: archives/datastax-agent-6.5.2.tar.gz
+      additional_packages:
+        - epel-release
+        - libaio
+        - java-1.8.0-openjdk
+
+    tasks:
+
+      - name: Ensure additional packages are installed
+        yum:
+          name: "{{ item }}"
+          state: installed
+        with_items:
+          - "{{ additional_packages }}"
+
+      - name: Ensure cassandra group exists
+        group:
+          name: cassandra
+          state: present
+
+      - name: Ensure cassandra user exists
+        user:
+          name: cassandra
+          group: cassandra
+
+      - name: Ensure cassandra directories exist
+        file:
+          name: "{{ item }}"
+          state: directory
+          owner: cassandra
+          group: cassandra
+        with_items:
+          - /var/lib/cassandra
+          - /var/log/cassandra
+          - /var/lib/dsefs
+          - /var/lib/spark
+          - /var/log/spark
+
+      - name: Unarchive packages to host
+        unarchive:
+          src: "{{ item }}"
+          dest: "/opt/"
+          owner: cassandra
+          group: cassandra
+          creates: "/opt/{{ item | basename | replace('.tar.gz', '') }}"
+        with_items:
+          - "{{ dse_enterprise }}"
+          - "{{ opscenter }}"
+          - "{{ datastax_agent }}"
+
+      - name: Add datastax agent config
+        lineinfile:
+          path: /opt/{{ datastax_agent | basename | replace('.tar.gz', '') }}/conf/address.yaml
+          regexp: '^stomp_interface'
+          line: 'stomp_interface: 127.0.0.1'
+
+      - name: Add aliases to start dse & opscenter
+        lineinfile:
+          dest: /home/vagrant/.bash_profile
+          line: "{{ item }}"
+        with_items:
+          - "alias dse='sudo -u cassandra /opt/{{ dse_enterprise | basename | replace('-bin.tar.gz', '') }}/bin/dse cassandra'"
+          - "alias ops='sudo -u cassandra /opt/{{ opscenter | basename | replace('.tar.gz', '') }}/bin/opscenter'"
+          - "alias agent='sudo -u cassandra /opt/{{ datastax_agent | basename | replace('.tar.gz', '') }}/bin/datastax-agent'"
