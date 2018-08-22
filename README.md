@@ -8,9 +8,10 @@ git clone https://github.com/rhysmeister/DSE.git
 cd DSE
 vagrant up
 ```
-The services must be started manually by logging into the VM. Some alises have been created to assist this;
+The services must be started manually by logging into the VM. Some aliases have been created to assist this;
 
 ```
+vagrant ssh
 dse; # Start Datastax Enterprise
 ops; # Start OpsCenter
 agent; # Start the Datastax Agent
